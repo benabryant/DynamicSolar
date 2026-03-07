@@ -3,6 +3,8 @@
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
 #include <IRutils.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
 #include "freertos/FreeRTOS.h"     // FreeRTOS kernel API
 #include "freertos/task.h"         // Task creation/management
@@ -12,6 +14,16 @@
 #define LEFT 0xFF10EF
 #define RIGHT 0xFF5AA5
 #define REPEAT 0xFFFFFFFFFFFFFFFF
+
+#define PHOTO_PIN 1
+#define LCD_ADDRESS 0x27
+
+#define FREQ 200
+#define BUZZER_PIN 2
+#define SDA_PIN 8
+#define SCL_PIN 9
+
+LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2); ///< LCD representation
 
 #define STEP_IN1 11
 #define STEP_IN2 12
@@ -26,6 +38,7 @@ int degree = 0;
 int Steps = 0;
 int dir = 1;
 
+QueueHandle_t lightQueue;
 ///< lightLevelQueue
 ///< remoteQueue
 QueueHandle_t remoteQueue;
@@ -35,12 +48,41 @@ QueueHandle_t remoteQueue;
 /*
  * @brief add to queue lightLevelQueue, core 0
  */
-void readLight(void *args){}
+void Task_ReadLight(void *args){
+  // Read the value from the photoresistor and add it to the queue
+  while (1) {
+    int light = analogRead(PHOTO_PIN);
+    xQueueSend(lightQueue, &light, portMAX_DELAY);
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
 
 /*
  * Display light level to lcd
  */
-void display(int level){}
+void Task_ProcessLight(void *args){
+  int light = 0;
+  while (1) {
+    if (xQueueReceive(lightQueue, &light, 0) == pdTRUE) {
+      Serial.println(light);
+
+      // Displays it on LCD
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(light);
+
+      // Triggers the buzzer if below a threshold
+      if (light < 1500) {
+        ledcWrite(BUZZER_PIN, 2000);
+      } else {
+        ledcWrite(BUZZER_PIN, 0);
+      }
+    }
+    vTaskDelay(1);
+  }
+}
+
+// Honestly, I don't think we need specific helper functions. Code is already pretty compact.
 
 /*
  * plays buzzer
@@ -181,14 +223,22 @@ void setup() {
   irrecv.enableIRIn(); // Start the receiver
 
   remoteQueue = xQueueCreate(2, sizeof(int));
-  
-  xTaskCreatePinnedToCore(Task_ReadRemote, "Read Remote Task", 4096, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
 
   pinMode(STEP_IN1, OUTPUT);
   pinMode(STEP_IN2, OUTPUT);
   pinMode(STEP_IN3, OUTPUT);
   pinMode(STEP_IN4, OUTPUT);
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  lcd.init();
+  lcd.backlight();
+
+  ledcAttach(BUZZER_PIN, FREQ, 12);
+
+  xTaskCreatePinnedToCore(Task_ReadRemote, "Read Remote Task", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(Task_ReadLight, "Read Light Task", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(Task_ProcessLight, "Process Light Task", 4096, NULL, 1, NULL, 1);
 }
 
 void loop() {}
