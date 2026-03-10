@@ -6,7 +6,6 @@ int degree = 0;
 int Steps = 0;
 int dir = 1;
 
-void Task_MovePanel(void *args);
 void stepper(int xw);
 void SetSteps();
 void SetDirection();
@@ -16,13 +15,12 @@ extern void panelSetup(){
   pinMode(STEP_IN2, OUTPUT);
   pinMode(STEP_IN3, OUTPUT);
   pinMode(STEP_IN4, OUTPUT);
-  xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
 }
 
 /*
  * Takes from queue movement information, moves motor accordingly, core 1
  */
-void Task_MovePanel(void *args){
+extern void Task_MovePanel(void *args){
   while (1) {
     if (xQueueReceive(remoteQueue, &dir, 0) == pdTRUE) {
       for (int i = 0; i < rotations / DEGR; i++){

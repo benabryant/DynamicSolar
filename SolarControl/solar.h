@@ -32,11 +32,16 @@
 #define STEP_IN4 14
 #define IR_PIN 36
 
-extern QueueHandle_t lightQueue;///< lightLevelQueue
+// extern QueueHandle_t lightQueue;///< lightLevelQueue
 extern QueueHandle_t remoteQueue;///< remoteQueue
 
 void panelSetup();
 void remoteSetup();
 void lightSetup();
+
+void Task_ReadRemote(void *args);
+void Task_MovePanel(void *args);
+void Task_ReadLight(void *args);
+void Task_ProcessLight(void *args);
 
 #endif

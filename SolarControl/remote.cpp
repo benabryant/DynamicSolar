@@ -2,18 +2,15 @@
 
 IRrecv irrecv(IR_PIN);  // Sets the IR_PIN to be used to receive inputs
 
-void Task_ReadRemote(void *args);
-
 extern void remoteSetup(){
   irrecv.enableIRIn(); // Start the receiver
-  xTaskCreatePinnedToCore(Task_ReadRemote, "Read Remote Task", 4096, NULL, 1, NULL, 0);
-  
+
 }
 
 /*
  * checking for remote values, writes some data to queue implement debouncing, core 0
  */
-void Task_ReadRemote(void *args){
+extern void Task_ReadRemote(void *args){
   int prev = 0;
   decode_results results;
   while (1) {
