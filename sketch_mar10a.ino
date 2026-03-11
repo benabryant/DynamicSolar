@@ -18,6 +18,7 @@
 #define IR_PIN 36
 #define LEFT 0xFF10EF
 #define RIGHT 0xFF5AA5
+#define OK 0xFF38C7
 #define REPEAT 0xFFFFFFFFFFFFFFFF
 
 #define PHOTO_PIN 1
@@ -36,7 +37,7 @@ LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2); ///< LCD representation
 #define STEP_IN4 14
 
 #define REMOTE_INTERVAL 50
-#define LIGHT_INTERVAL 10
+#define LIGHT_INTERVAL 1
 
 #define TIMER_INCREMENT_MODE (1 << 30)
 #define TIMER_ENABLE (1 << 31)
@@ -68,7 +69,6 @@ void Task_ReadLight(void *args){
 
       int light = analogRead(PHOTO_PIN);
       xQueueSend(lightQueue, &light, portMAX_DELAY);
-      Serial.println(light);
 
 
       // TODO: Update last_toggle_time
@@ -92,13 +92,13 @@ void Task_ProcessLight(void *args){
       lcd.print(light);
 
       // Triggers the buzzer if below a threshold
-      if (light < 1500) {
+      if (light > 2400) {
         ledcWrite(BUZZER_PIN, 2000);
       } else {
         ledcWrite(BUZZER_PIN, 0);
       }
     }
-    vTaskDelay(100);
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
@@ -136,12 +136,12 @@ void Task_ReadRemote(void *args){
               prev = -1;
             }
 
-            Serial.println(prev);
+            //Serial.println(prev);
             xQueueSend(remoteQueue, &prev, portMAX_DELAY);
           
           }
           irrecv.resume(); // Receive the next value
-          // Serial.println(resultToHexidecimal(&results)); // Print code
+          //Serial.println(resultToHexidecimal(&results)); // Print code
         }
 
       last_toggle_time_remote = current_time_remote;
@@ -280,9 +280,9 @@ void setup() {
   *((volatile uint32_t *) TIMG_T0UPDATE_REG(1)) = 1;
 
   xTaskCreatePinnedToCore(Task_ReadRemote, "Read Remote Task", 4096, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
-  xTaskCreatePinnedToCore(Task_ReadLight, "Read Light Task", 4096, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(Task_ProcessLight, "Process Light Task", 4096, NULL, 1, NULL, 1);
+  //xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
+  //xTaskCreatePinnedToCore(Task_ReadLight, "Read Light Task", 4096, NULL, 1, NULL, 0);
+  //xTaskCreatePinnedToCore(Task_ProcessLight, "Process Light Task", 4096, NULL, 1, NULL, 1);
 }
 
 void loop() {}
