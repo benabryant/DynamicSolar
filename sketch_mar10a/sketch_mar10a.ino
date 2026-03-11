@@ -86,13 +86,17 @@ void Task_ReadLight(void *args){
  */
 void Task_ProcessLight(void *args){
   int light = 0;
+  lcd.clear();
+  lcd.print("Sunlight: ");
+  lcd.setCursor(12, 0);
+  lcd.print("%");
   while (1) {
     if (xQueueReceive(lightQueue, &light, portMAX_DELAY) == pdTRUE) {
       // Displays it on LCD
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print(light);
-      // Serial.println(light);
+      lcd.setCursor(10, 0);
+      lcd.print(int((float) light / 4096 * 100));
+      
+      // lcd.print(light);
 
       // Triggers the buzzer if below a threshold
       if (light > 2400) {
@@ -104,18 +108,6 @@ void Task_ProcessLight(void *args){
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
-
-// Honestly, I don't think we need specific helper functions. Code is already pretty compact.
-
-/*
- * plays buzzer
- */
-void buzzer(){}
-
-/*
- * reads from queue, calls buzzer and display, core 1
- */
-void processLight(void *args){}
 
 /*
  * checking for remote values, writes some data to queue implement debouncing, core 0
