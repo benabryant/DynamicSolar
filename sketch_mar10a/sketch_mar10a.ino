@@ -36,8 +36,8 @@ LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2); ///< LCD representation
 #define STEP_IN3 13
 #define STEP_IN4 14
 
-#define REMOTE_INTERVAL 6400
-#define LIGHT_INTERVAL 2500
+#define REMOTE_INTERVAL 50
+#define LIGHT_INTERVAL 10
 
 #define TIMER_INCREMENT_MODE (1 << 30)
 #define TIMER_ENABLE (1 << 31)
@@ -67,8 +67,8 @@ void Task_ReadLight(void *args){
     current_time_light = *((volatile uint32_t *) TIMG_T0LO_REG(0));
     if ((current_time_light - last_toggle_time_light) >= LIGHT_INTERVAL) {
 
-      // int light = analogRead(PHOTO_PIN);
-      int light = 2000;
+      int light = analogRead(PHOTO_PIN);
+      // int light = 2000;
       xQueueSend(lightQueue, &light, portMAX_DELAY);
 
 
@@ -91,8 +91,8 @@ void Task_ProcessLight(void *args){
       // Displays it on LCD
       lcd.clear();
       lcd.setCursor(0, 0);
-      // lcd.print(light);
-      Serial.println(light);
+      lcd.print(light);
+      // Serial.println(light);
 
       // Triggers the buzzer if below a threshold
       if (light > 2400) {
@@ -271,7 +271,7 @@ void setup() {
   ledcAttach(BUZZER_PIN, FREQ, 12);
 
   uint32_t timer_config = 0;
-  uint32_t divisor = 250;
+  uint32_t divisor = 128;
   timer_config |= (divisor << 13);
 
   timer_config |= TIMER_INCREMENT_MODE;
