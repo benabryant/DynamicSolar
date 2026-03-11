@@ -36,8 +36,8 @@ LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2); ///< LCD representation
 #define STEP_IN3 13
 #define STEP_IN4 14
 
-#define REMOTE_INTERVAL 50
-#define LIGHT_INTERVAL 1
+#define REMOTE_INTERVAL 6400
+#define LIGHT_INTERVAL 2500
 
 #define TIMER_INCREMENT_MODE (1 << 30)
 #define TIMER_ENABLE (1 << 31)
@@ -67,7 +67,8 @@ void Task_ReadLight(void *args){
     current_time_light = *((volatile uint32_t *) TIMG_T0LO_REG(0));
     if ((current_time_light - last_toggle_time_light) >= LIGHT_INTERVAL) {
 
-      int light = analogRead(PHOTO_PIN);
+      // int light = analogRead(PHOTO_PIN);
+      int light = 2000;
       xQueueSend(lightQueue, &light, portMAX_DELAY);
 
 
@@ -76,6 +77,7 @@ void Task_ReadLight(void *args){
     }
 
     *((volatile uint32_t *) TIMG_T0UPDATE_REG(0)) = 1;
+    vTaskDelay(1);
   }
 }
 
@@ -85,11 +87,12 @@ void Task_ReadLight(void *args){
 void Task_ProcessLight(void *args){
   int light = 0;
   while (1) {
-    if (xQueueReceive(lightQueue, &light, 0) == pdTRUE) {
+    if (xQueueReceive(lightQueue, &light, portMAX_DELAY) == pdTRUE) {
       // Displays it on LCD
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print(light);
+      // lcd.print(light);
+      Serial.println(light);
 
       // Triggers the buzzer if below a threshold
       if (light > 2400) {
@@ -148,6 +151,7 @@ void Task_ReadRemote(void *args){
     }
 
     *((volatile uint32_t *) TIMG_T0UPDATE_REG(1)) = 1;
+    vTaskDelay(1);
   }
 }
 
@@ -156,7 +160,7 @@ void Task_ReadRemote(void *args){
  */
 void Task_MovePanel(void *args){
   while (1) {
-    if (xQueueReceive(remoteQueue, &dir, 0) == pdTRUE) {
+    if (xQueueReceive(remoteQueue, &dir, portMAX_DELAY) == pdTRUE) {
       for (int i = 0; i < 128; i++){
         stepper(1);
         vTaskDelay(1);
@@ -267,7 +271,7 @@ void setup() {
   ledcAttach(BUZZER_PIN, FREQ, 12);
 
   uint32_t timer_config = 0;
-  uint32_t divisor = 128;
+  uint32_t divisor = 250;
   timer_config |= (divisor << 13);
 
   timer_config |= TIMER_INCREMENT_MODE;
@@ -280,9 +284,9 @@ void setup() {
   *((volatile uint32_t *) TIMG_T0UPDATE_REG(1)) = 1;
 
   xTaskCreatePinnedToCore(Task_ReadRemote, "Read Remote Task", 4096, NULL, 1, NULL, 0);
-  //xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
-  //xTaskCreatePinnedToCore(Task_ReadLight, "Read Light Task", 4096, NULL, 1, NULL, 0);
-  //xTaskCreatePinnedToCore(Task_ProcessLight, "Process Light Task", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(Task_MovePanel, "Move Panel Task", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(Task_ReadLight, "Read Light Task", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(Task_ProcessLight, "Process Light Task", 4096, NULL, 1, NULL, 1);
 }
 
 void loop() {}
